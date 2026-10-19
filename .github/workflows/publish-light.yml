@@ -1,0 +1,50 @@
+name: Publish verified StreamVoice Light
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: atashkavvegas-alt/streamvoice-releases
+      SOURCE_URL: https://storage-gibraltar-weblogs-colony.trycloudflare.com
+    steps:
+      - name: Download only the four public release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in SHA256SUMS.txt streamvoice-update.json StreamVoice-2.0.3.0-patch.zip StreamVoice-Light-2.0.3-Full.zip; do
+            curl --fail --location --retry 3 --retry-all-errors --connect-timeout 30 --max-time 1200 "$SOURCE_URL/$file" -o "$file"
+          done
+      - name: Verify pinned checksums before publishing
+        shell: bash
+        run: |
+          echo 'faa61560cfe464483910d02e66de68d197df85843656b861624fe3f193d99dee  SHA256SUMS.txt' | sha256sum --check
+          python - <<'PY'
+          import pathlib, hashlib
+          for line in pathlib.Path('SHA256SUMS.txt').read_text().splitlines():
+              expected, name = line.split('  ', 1)
+              h = hashlib.sha256()
+              with open(name, 'rb') as source:
+                  while data := source.read(8388608): h.update(data)
+              assert h.hexdigest() == expected, name
+              print(name, 'verified')
+          PY
+      - name: Publish Light, without invitations or personal Alpha
+        shell: bash
+        run: |
+          cat > release-notes.md <<'TEXT'
+          Тестовая StreamVoice Light 2.0.3 для Windows — без Геральта и CUDA.
+
+          Скачайте **StreamVoice-Light-2.0.3-Full.zip**, распакуйте всю папку и запустите **StreamVoice-Light-2.0.3-Setup.exe**. Три файла .svpack должны оставаться рядом с Setup. Старая версия не требуется. Все библиотеки и туркменские модели включены.
+
+          Светлана доступна бесплатно. Дополнительные голоса открываются личным приглашением на одно устройство в разделе «Мой доступ». Получите ключ отдельно у владельца и не публикуйте его. Кубик и Джарвис дополнительно требуют собственного ключа Fish Audio.
+
+          Проверены чистая установка, онлайн-активация, локальная туркменская речь и закрытие доступа после выхода. Настоящий TikTok LIVE на конкретном ноутбуке ещё нужно проверить.
+
+          Патч ZIP и streamvoice-update.json используются встроенными обновлениями. Личная Alpha и ключи приглашений здесь не публикуются.
+          TEXT
+          gh release create v2.0.3-light StreamVoice-Light-2.0.3-Full.zip StreamVoice-2.0.3.0-patch.zip streamvoice-update.json SHA256SUMS.txt --target main --title 'StreamVoice Light 2.0.3 — бета для тестирования' --notes-file release-notes.md --latest
