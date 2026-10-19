@@ -10,7 +10,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: atashkavvegas-alt/streamvoice-releases
-      SOURCE_URL: https://storage-gibraltar-weblogs-colony.trycloudflare.com
+      SOURCE_URL: https://suit-examining-brussels-apartments.trycloudflare.com
     steps:
       - name: Download only the four public release files
         shell: bash
@@ -64,4 +64,5 @@ jobs:
           Патч ZIP и streamvoice-update.json используются встроенными обновлениями. Личная Alpha и ключи приглашений здесь не публикуются.
           TEXT
           gh release create v2.0.3-light StreamVoice-Light-2.0.3-Full.zip StreamVoice-2.0.3.0-patch.zip streamvoice-update.json SHA256SUMS.txt --target main --title 'StreamVoice Light 2.0.3 — бета для тестирования' --notes-file release-notes.md --latest
+
 
