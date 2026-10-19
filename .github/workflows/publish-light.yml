@@ -16,9 +16,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for file in SHA256SUMS.txt streamvoice-update.json StreamVoice-2.0.3.0-patch.zip StreamVoice-Light-2.0.3-Full.zip; do
+          for file in SHA256SUMS.txt streamvoice-update.json StreamVoice-2.0.3.0-patch.zip; do
             curl --fail --location --retry 3 --retry-all-errors --connect-timeout 30 --max-time 1200 "$SOURCE_URL/$file" -o "$file"
           done
+          python - <<'PY'
+          import concurrent.futures, subprocess, pathlib, os
+          size=1002605035
+          step=8*1024*1024
+          def fetch(i):
+              start=i*step; end=min(size,start+step)-1
+              path=pathlib.Path(f'part-{i:04d}')
+              subprocess.run(['curl','--silent','--show-error','--fail','--location','--retry','3','--max-time','600','--range',f'{start}-{end}',os.environ['SOURCE_URL']+'/StreamVoice-Light-2.0.3-Full.zip','-o',str(path)],check=True)
+              assert path.stat().st_size==end-start+1
+              print(f'Part {i} verified size',flush=True)
+          count=(size+step-1)//step
+          with concurrent.futures.ThreadPoolExecutor(max_workers=24) as pool:
+              list(pool.map(fetch,range(count)))
+          with open('StreamVoice-Light-2.0.3-Full.zip','wb') as target:
+              for i in range(count): target.write(pathlib.Path(f'part-{i:04d}').read_bytes())
+          PY
       - name: Verify pinned checksums before publishing
         shell: bash
         run: |
